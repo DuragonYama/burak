@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   Settings as SettingsIcon, 
   Heart, 
@@ -59,6 +59,8 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, initialTab = 'motiva
   const [newPattern, setNewPattern] = useState<number[]>([]);
   const [visiblePasswords, setVisiblePasswords] = useState<string[]>([]);
   const [goalErrors, setGoalErrors] = useState<{ weekly?: string; monthly?: string; yearly?: string }>({});
+  const [appCategoryError, setAppCategoryError] = useState(false);
+  const categoryInputRef = useRef<HTMLInputElement>(null);
   
   // Local state for goals to allow typing while validating hierarchy
   const [localGoals, setLocalGoals] = useState({
@@ -68,31 +70,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, initialTab = 'motiva
   });
 
   const handleGoalInputChange = (key: 'weekly' | 'monthly' | 'yearly', value: string) => {
-    const nextLocalGoals = { ...localGoals, [key]: value };
-    const val = parseInt(value, 10);
-
-    if (!isNaN(val) && val >= 0) {
-      // Dynamic Adjustment: Push parent goals up if subordinate goal increases
-      if (key === 'weekly') {
-        const currentMonthly = parseInt(nextLocalGoals.monthly, 10) || state.settings.monthlyGoalHours;
-        if (val > currentMonthly) {
-          nextLocalGoals.monthly = val.toString();
-          const currentYearly = parseInt(nextLocalGoals.yearly, 10) || state.settings.yearlyGoalHours;
-          if (val > currentYearly) {
-            nextLocalGoals.yearly = val.toString();
-          }
-        }
-      } else if (key === 'monthly') {
-        const currentYearly = parseInt(nextLocalGoals.yearly, 10) || state.settings.yearlyGoalHours;
-        if (val > currentYearly) {
-          nextLocalGoals.yearly = val.toString();
-        }
-      }
-    }
-
-    setLocalGoals(nextLocalGoals);
-    
-    // Clear error if we're typing
+    setLocalGoals({ ...localGoals, [key]: value });
     if (goalErrors[key]) {
       const newErrors = { ...goalErrors };
       delete newErrors[key];
@@ -101,58 +79,41 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, initialTab = 'motiva
   };
 
   const handleGoalConfirm = (key: 'weekly' | 'monthly' | 'yearly') => {
-    const rawValue = localGoals[key];
-    const val = parseInt(rawValue, 10);
-    
-    // If empty or invalid, revert to last valid global state
-    if (isNaN(val)) {
-      setLocalGoals({ 
-        weekly: state.settings.weeklyGoalHours.toString(),
-        monthly: state.settings.monthlyGoalHours.toString(),
-        yearly: state.settings.yearlyGoalHours.toString()
-      });
+    const val = parseInt(localGoals[key], 10);
+
+    // Invalid input — revert this field only
+    if (isNaN(val) || val < 0) {
+      setLocalGoals(prev => ({ ...prev, [key]: state.settings[`${key}GoalHours` as 'weeklyGoalHours' | 'monthlyGoalHours' | 'yearlyGoalHours'].toString() }));
       return;
     }
 
-    // Validation: Parent goals cannot be manually set below subordinate goals
-    let minValue = 0;
-    if (key === 'monthly') minValue = state.settings.weeklyGoalHours;
-    if (key === 'yearly') minValue = state.settings.monthlyGoalHours;
+    // Validate against the saved (committed) sibling values only — never touch them
+    let error: string | undefined;
+    if (key === 'weekly' && val > state.settings.monthlyGoalHours) {
+      error = 'Weekly cannot exceed Monthly goal';
+    } else if (key === 'monthly') {
+      if (val < state.settings.weeklyGoalHours) error = 'Monthly cannot be lower than Weekly goal';
+      else if (val > state.settings.yearlyGoalHours) error = 'Monthly cannot exceed Yearly goal';
+    } else if (key === 'yearly' && val < state.settings.monthlyGoalHours) {
+      error = 'Yearly cannot be lower than Monthly goal';
+    }
 
-    if (val < minValue || val < 0) {
-      setGoalErrors({ ...goalErrors, [key]: `Value cannot be lower than ${key === 'weekly' ? '0' : key === 'monthly' ? 'Weekly goal' : 'Monthly goal'}` });
-      // Revert local state to match global settings
-      setLocalGoals({ 
-        weekly: state.settings.weeklyGoalHours.toString(),
-        monthly: state.settings.monthlyGoalHours.toString(),
-        yearly: state.settings.yearlyGoalHours.toString()
-      });
+    if (error) {
+      setGoalErrors({ ...goalErrors, [key]: error });
+      setLocalGoals(prev => ({ ...prev, [key]: state.settings[`${key}GoalHours` as 'weeklyGoalHours' | 'monthlyGoalHours' | 'yearlyGoalHours'].toString() }));
       return;
     }
 
-    // Valid: update settings for ALL goals (because of pushing logic)
-    const finalWeekly = key === 'weekly' ? val : parseInt(localGoals.weekly, 10);
-    const finalMonthly = key === 'monthly' ? val : parseInt(localGoals.monthly, 10);
-    const finalYearly = key === 'yearly' ? val : parseInt(localGoals.yearly, 10);
-
+    // Valid — save only this field
     updateSettings({
       ...state.settings,
-      weeklyGoalHours: finalWeekly,
-      monthlyGoalHours: finalMonthly,
-      yearlyGoalHours: finalYearly
-    });
-    
-    // Clear error
+      [`${key}GoalHours`]: val,
+    } as any);
+
     const newErrors = { ...goalErrors };
     delete newErrors[key];
     setGoalErrors(newErrors);
-    
-    // Normalize local state
-    setLocalGoals({
-      weekly: finalWeekly.toString(),
-      monthly: finalMonthly.toString(),
-      yearly: finalYearly.toString()
-    });
+    setLocalGoals(prev => ({ ...prev, [key]: val.toString() }));
   };
 
   const handleAddMotivation = (e: React.FormEvent) => {
@@ -201,11 +162,16 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, initialTab = 'motiva
 
   const handleAddApp = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newAppName.trim() && newAppCategory.trim()) {
-      addApp(newAppName.trim(), newAppCategory.trim());
-      setNewAppName('');
-      setNewAppCategory('');
+    if (!newAppName.trim()) return;
+    if (!newAppCategory.trim()) {
+      setAppCategoryError(true);
+      categoryInputRef.current?.focus();
+      return;
     }
+    addApp(newAppName.trim(), newAppCategory.trim());
+    setNewAppName('');
+    setNewAppCategory('');
+    setAppCategoryError(false);
   };
 
   const handleAddSmartGoal = (e: React.FormEvent) => {
@@ -298,7 +264,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, initialTab = 'motiva
 
       {/* Tabs */}
       <div className="flex flex-wrap justify-center gap-1 p-1 bg-aura-sage/5 rounded-2xl">
-        {(['motivations', 'smart', 'passwords', 'questions', 'apps', 'goal', 'config', 'vision'] as const).map((tab) => (
+        {(['apps', 'config', 'goal', 'motivations', 'passwords', 'questions', 'smart', 'vision'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -688,16 +654,22 @@ export const Settings: React.FC<SettingsProps> = ({ onBack, initialTab = 'motiva
                   className="flex-1 p-4 bg-white rounded-2xl border border-aura-sage/10 text-sm outline-none focus:border-aura-sage/30 transition-all"
                 />
                 <input
+                  ref={categoryInputRef}
                   type="text"
                   placeholder="Category"
                   value={newAppCategory}
-                  onChange={(e) => setNewAppCategory(e.target.value)}
-                  className="w-1/3 p-4 bg-white rounded-2xl border border-aura-sage/10 text-sm outline-none focus:border-aura-sage/30 transition-all"
+                  onChange={(e) => { setNewAppCategory(e.target.value); setAppCategoryError(false); }}
+                  className={`w-1/3 p-4 bg-white rounded-2xl border text-sm outline-none transition-all ${
+                    appCategoryError ? 'border-red-400 focus:border-red-400' : 'border-aura-sage/10 focus:border-aura-sage/30'
+                  }`}
                 />
               </div>
-              <button 
+              {appCategoryError && (
+                <p className="text-[10px] text-red-500 font-medium">Please fill in the category</p>
+              )}
+              <button
                 type="submit"
-                disabled={!newAppName.trim() || !newAppCategory.trim()}
+                disabled={!newAppName.trim()}
                 className="w-full p-4 bg-aura-sage text-white rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2 font-medium"
               >
                 <Plus size={20} /> Add App to Restriction
