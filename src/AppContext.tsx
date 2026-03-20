@@ -6,6 +6,7 @@ interface AppContextType {
   state: AppState;
   updateSettings: (settings: AppState['settings']) => void;
   addHistory: (attempt: UnlockAttempt) => void;
+  removeHistory: (timestamp: number) => void;
   toggleApp: (appId: string) => void;
   addApp: (name: string, category: string) => void;
   removeApp: (appId: string) => void;
@@ -31,6 +32,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setState(prev => ({
       ...prev,
       history: [attempt, ...prev.history]
+    }));
+  };
+
+  const removeHistory = (timestamp: number) => {
+    setState(prev => ({
+      ...prev,
+      history: prev.history.filter(h => h.timestamp !== timestamp)
     }));
   };
 
@@ -103,13 +111,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   return (
-    <AppContext.Provider value={{ 
-      state, 
-      updateSettings, 
-      addHistory, 
-      toggleApp, 
-      addApp, 
-      removeApp, 
+    <AppContext.Provider value={{
+      state,
+      updateSettings,
+      addHistory,
+      removeHistory,
+      toggleApp,
+      addApp,
+      removeApp,
       completeOnboarding,
       streak,
       dismissMilestone

@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Plus
 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { useApp } from '../AppContext';
 import { RestrictedApp } from '../types';
 
@@ -17,7 +18,7 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ onAppSelect, onManageApps }) => {
-  const { state, streak } = useApp();
+  const { state, streak, removeHistory } = useApp();
 
   const resistedCount = (state.history || []).filter(h => h.status === 'resisted').length;
   const totalTimeSaved = (state.history || [])
@@ -158,8 +159,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAppSelect, onManageApps 
                     <div className="text-[10px] text-aura-sage font-bold uppercase tracking-widest">
                       {(state.restrictedApps || []).find(a => a.id === h.appId)?.name || 'Unknown App'}
                     </div>
-                    <div className="text-[10px] text-aura-ink/40">
-                      {new Date(h.timestamp).toLocaleDateString()}
+                    <div className="flex items-center gap-2">
+                      <div className="text-[10px] text-aura-ink/40">
+                        {new Date(h.timestamp).toLocaleDateString()}
+                      </div>
+                      <button
+                        onClick={() => removeHistory(h.timestamp)}
+                        className="text-aura-ink/20 hover:text-red-400 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </div>
                   <p className="text-sm italic text-aura-ink/80">"{h.journalEntry}"</p>
