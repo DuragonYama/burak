@@ -38,7 +38,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const removeHistory = (timestamp: number) => {
     setState(prev => ({
       ...prev,
-      history: prev.history.filter(h => h.timestamp !== timestamp)
+      history: prev.history.map(h =>
+        h.timestamp === timestamp ? { ...h, journalEntry: undefined } : h
+      )
     }));
   };
 
