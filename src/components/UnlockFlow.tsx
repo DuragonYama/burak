@@ -268,11 +268,11 @@ export const UnlockFlow: React.FC<UnlockFlowProps> = ({ app, onCancel, onSuccess
             className="text-center space-y-8"
           >
             <h2 className="text-3xl serif italic">Your Vision</h2>
-            <div className="aspect-[4/5] w-full rounded-3xl overflow-hidden shadow-lg bg-aura-sage/5">
-              <img 
-                src={selectedAnchor} 
-                alt="Visual Anchor" 
-                className="w-full h-full object-contain"
+            <div className="w-full rounded-3xl overflow-hidden shadow-lg">
+              <img
+                src={selectedAnchor}
+                alt="Visual Anchor"
+                className="w-full h-auto block"
                 referrerPolicy="no-referrer"
               />
             </div>
