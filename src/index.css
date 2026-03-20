@@ -11,7 +11,11 @@
 }
 
 html, body {
-  @apply bg-aura-cream text-aura-ink font-sans antialiased overflow-hidden h-full;
+  @apply bg-aura-cream text-aura-ink font-sans antialiased overflow-hidden h-full select-none;
+}
+
+input, textarea {
+  user-select: text;
 }
 
 .serif {
