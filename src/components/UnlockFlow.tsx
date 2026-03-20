@@ -272,7 +272,7 @@ export const UnlockFlow: React.FC<UnlockFlowProps> = ({ app, onCancel, onSuccess
               <img 
                 src={selectedAnchor} 
                 alt="Visual Anchor" 
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
                 referrerPolicy="no-referrer"
               />
             </div>

@@ -28,7 +28,7 @@ const VisionImage: React.FC<{ url: string; index: number; onRemove: () => void }
       <img 
         src={url} 
         alt={`Vision ${index + 1}`} 
-        className="w-full h-full object-cover"
+        className="w-full h-full object-contain"
         referrerPolicy="no-referrer"
       />
       <button 
