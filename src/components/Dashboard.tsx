@@ -20,7 +20,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onAppSelect, onManageApps 
   const { state, streak } = useApp();
 
   const resistedCount = (state.history || []).filter(h => h.status === 'resisted').length;
-  const totalTimeSaved = resistedCount * 15; // Estimate 15 mins saved per resisted attempt
+  const totalTimeSaved = (state.history || [])
+    .filter(h => h.status === 'resisted' && h.intendedDuration)
+    .reduce((sum, h) => sum + (h.intendedDuration || 0), 0);
 
   return (
     <div className="space-y-8 pb-24">

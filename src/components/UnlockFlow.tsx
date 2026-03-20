@@ -21,21 +21,24 @@ interface UnlockFlowProps {
   onSuccess: () => void;
 }
 
-type Step = 
-  | 'reflection' 
-  | 'visual' 
-  | 'timer' 
-  | 'password' 
-  | 'intent' 
+type Step =
+  | 'duration'
+  | 'reflection'
+  | 'visual'
+  | 'timer'
+  | 'password'
+  | 'intent'
   | 'journaling'
   | 'micro-reflection'
-  | 'confirmation' 
+  | 'confirmation'
   | 'success'
   | 'emergency';
 
 export const UnlockFlow: React.FC<UnlockFlowProps> = ({ app, onCancel, onSuccess }) => {
   const { state, addHistory } = useApp();
-  const [step, setStep] = useState<Step>('reflection');
+  const [step, setStep] = useState<Step>('duration');
+  const [intendedDuration, setIntendedDuration] = useState<number | null>(null);
+  const [customDuration, setCustomDuration] = useState('');
   const [timeLeft, setTimeLeft] = useState(state.settings.unlockTimerSeconds);
   const [selectedPassword, setSelectedPassword] = useState<Password | null>(null);
   const [passwordInput, setPasswordInput] = useState('');
@@ -100,6 +103,7 @@ export const UnlockFlow: React.FC<UnlockFlowProps> = ({ app, onCancel, onSuccess
       timestamp: Date.now(),
       status,
       duration: Math.floor((Date.now() - startTime) / 1000),
+      intendedDuration: intendedDuration ?? undefined,
       journalEntry: journalInput.trim() || undefined
     });
     if (status === 'unlocked' || status === 'emergency') {
@@ -137,6 +141,76 @@ export const UnlockFlow: React.FC<UnlockFlowProps> = ({ app, onCancel, onSuccess
 
   const renderStep = () => {
     switch (step) {
+      case 'duration': {
+        const presets = [5, 15, 30, 60, 120];
+        const selectedMinutes = intendedDuration;
+        const customVal = parseInt(customDuration, 10);
+        const canProceed = selectedMinutes !== null && selectedMinutes > 0;
+
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center space-y-8"
+          >
+            <div className="space-y-4">
+              <h2 className="text-3xl serif italic">How long were you planning to use {app.name}?</h2>
+              <p className="text-aura-ink/60">This helps track the time you reclaim by resisting.</p>
+            </div>
+
+            <div className="flex flex-wrap justify-center gap-3">
+              {presets.map(mins => (
+                <button
+                  key={mins}
+                  onClick={() => { setIntendedDuration(mins); setCustomDuration(''); }}
+                  className={`px-5 py-3 rounded-2xl font-medium transition-all text-sm ${
+                    selectedMinutes === mins && customDuration === ''
+                      ? 'bg-aura-sage text-white shadow-md'
+                      : 'bg-white border border-aura-sage/20 text-aura-ink/70 hover:border-aura-sage/40'
+                  }`}
+                >
+                  {mins < 60 ? `${mins} min` : `${mins / 60} hr`}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-aura-sage/10" />
+              <span className="text-xs text-aura-ink/30 uppercase tracking-widest">or custom</span>
+              <div className="flex-1 h-px bg-aura-sage/10" />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                min="1"
+                value={customDuration}
+                onChange={(e) => {
+                  setCustomDuration(e.target.value);
+                  const val = parseInt(e.target.value, 10);
+                  if (!isNaN(val) && val > 0) setIntendedDuration(val);
+                }}
+                placeholder="Enter minutes"
+                className="flex-1 p-4 text-center border-2 border-aura-sage/20 rounded-2xl focus:border-aura-sage outline-none transition-all"
+              />
+              <span className="text-aura-ink/40 text-sm">min</span>
+            </div>
+
+            <button
+              disabled={!canProceed}
+              onClick={() => setStep('reflection')}
+              className={`w-full py-4 rounded-2xl font-medium flex items-center justify-center gap-2 transition-all ${
+                canProceed
+                  ? 'bg-aura-sage text-white shadow-lg hover:bg-aura-sage/90'
+                  : 'bg-aura-sage/10 text-aura-sage/40 cursor-not-allowed'
+              }`}
+            >
+              Continue <ArrowRight size={18} />
+            </button>
+          </motion.div>
+        );
+      }
+
       case 'reflection':
         const motivations = state.settings?.motivations || [];
         const motivation = motivations[Math.floor(Math.random() * motivations.length)];

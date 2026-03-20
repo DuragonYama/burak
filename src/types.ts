@@ -23,6 +23,7 @@ export interface UnlockAttempt {
   appId: AppId;
   status: 'resisted' | 'unlocked' | 'emergency';
   duration: number; // seconds spent in flow
+  intendedDuration?: number; // minutes the user planned to use the app
   journalEntry?: string;
 }
 
